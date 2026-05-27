@@ -9,7 +9,7 @@ URL_DA_LOGO = "https://i.postimg.cc/rFLbQtsS/Screenshot-2026-05-27-12-09-42.png"
 st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
 
 # SENHA FIXA DE SEGURANÇA PARA A NUVEM
-SENHA_CORRETA = "83993535345vidydownloader#"
+SENHA_CORRETA = "83993535345#"
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
