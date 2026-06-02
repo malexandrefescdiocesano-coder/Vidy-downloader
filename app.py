@@ -33,7 +33,7 @@ if not st.session_state.logado:
     st.stop()
 
 # INTERFACE DO APP COMPLETO
-st.warning("🚨 AVISO DE SEGURANÇA:
+st.warning("🚨 AVISO DE PRIVACIDADE:
 
            Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
            
