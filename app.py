@@ -9,7 +9,7 @@ URL_DA_LOGO = "https://i.postimg.cc/rFLbQtsS/Screenshot-2026-05-27-12-09-42.png"
 st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
 
 # SENHA FIXA DE SEGURANÇA PARA A NUVEM
-SENHA_CORRETA = "83993535345#"
+SENHA_CORRETA = ""
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -33,7 +33,7 @@ if not st.session_state.logado:
     st.stop()
 
 # INTERFACE DO APP COMPLETO
-st.warning("🚨 AVISO DE SEGURANÇA: Este é um link privado de testes. NÃO compartilhe este link com ninguém!")
+st.warning("🚨 AVISO DE SEGURANÇA: Este é um app privado só para você. NÃO compartilhe este link com ninguém!🚨")
 st.image(URL_DA_LOGO, use_container_width=True)
 st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader</h1>", unsafe_allow_html=True)
 st.write("---")
