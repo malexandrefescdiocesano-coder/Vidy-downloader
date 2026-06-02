@@ -37,7 +37,7 @@ st.warning("🚨 AVISO DE PRIVACIDADE:
 
            Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
            
-           NUNCA, JAMAIS baixe vídeos com direitos autorais!🧑‍✈🚧
+           JAMAIS baixe vídeos com direitos autorais!🧑‍✈🚧
            
            Siga essas regras e aproveite o seu app!👋👍")
 st.image(URL_DA_LOGO, use_container_width=True)
