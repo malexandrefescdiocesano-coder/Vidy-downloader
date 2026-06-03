@@ -35,7 +35,7 @@ if not st.session_state.logado:
 # INTERFACE DO APP COMPLETO
 st.warning("""🚨 AVISO DE SEGURANÇA E PRIVACIDADE:
 
-           Este é um app privado só para você. NÃO compartilhe este link com ninguém!
+           Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
 
           JAMAIS baixe vídeos com direitos autorais!🧑‍✈🚧
 
