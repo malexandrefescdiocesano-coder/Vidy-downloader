@@ -86,16 +86,19 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         st.info("Analisando o link e capturando informações...")
         
         # Define se vai capturar título individual ou da playlist
+                # Define se vai capturar título individual ou da playlist
         try:
             flag_titulo = '--get-filename' if eh_playlist else '--get-title'
             resultado_titulo = subprocess.run(
                 ['yt-dlp', flag_titulo, url], 
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
             )
+            # Pegamos o primeiro item da lista gerada pelo split e removemos os espaços
             titulo_original = resultado_titulo.stdout.split('\n')[0].strip()
             titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_original)
         except:
             titulo_limpo = "Vidy_Download"
+
 
         extensao = "mp4" if formato == "Video (MP4)" else "mp3"
         
