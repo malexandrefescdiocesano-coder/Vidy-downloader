@@ -79,10 +79,12 @@ st.write("")
 if st.button("🚀 Iniciar Processamento", use_container_width=True):
     if not url:
         st.error("Por favor, insira uma URL válida do YouTube!")
-    elif not url.strip().startswith(("https://youtube.com", "https://youtube.com", "https://youtu.be", "http://youtube.com", "http://youtube.com", "http://youtu.be")):
+    # 👇 VALIDAÇÃO INTELIGENTE COM REGEX (Substitua a linha antiga por esta) 👇
+    elif not re.match(r"^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+", url.strip()):
         st.error("🚨 Link inválido! Por segurança, este aplicativo aceita apenas URLs oficiais do YouTube.")
     else:
         st.session_state.processado = False
+
         st.info("Analisando o link e capturando informações...")
         
         # Define se vai capturar título individual ou da playlist
