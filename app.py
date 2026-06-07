@@ -40,10 +40,11 @@ st.warning("""🚨 AVISO DE SEGURANÇA E PRIVACIDADE:
 Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
 
 JAMAIS baixe vídeos com direitos autorais! 🚧
+
 Saiba mais sobre direitos autorais 👉 https://vimeo.com/1199219472?share=copy&fl=sv&fe=ci""")
 
 st.image(URL_DA_LOGO, use_container_width=True)
-st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader v2</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader</h1>", unsafe_allow_html=True)
 st.write("---")
 
 if "processado" not in st.session_state:
@@ -62,14 +63,6 @@ with col1:
 with col2:
     resolucao = st.selectbox("Resolução máxima (Apenas Vídeo):", ["Maxima Qualidade (Ate 4K/8K)", "720p (HD)", "480p (Standard)"])
 
-# ✂️ CORTAR UM PEDAÇO DO VÍDEO
-st.markdown("### ✂️ Cortar um Pedaço (Opcional)")
-col_tempo1, col_tempo2 = st.columns(2)
-with col_tempo1:
-    tempo_inicio = st.text_input("Início (Ex: 00:01:25)", placeholder="Deixe vazio para o início")
-with col_tempo2:
-    tempo_fim = st.text_input("Fim (Ex: 00:01:47)", placeholder="Deixe vazio para o final")
-
 # 🎶 CONFIGURAÇÃO DE PLAYLIST
 st.markdown("### 🎶 Configuração de Playlist")
 eh_playlist = st.checkbox("Baixar a PLAYLIST INTEIRA (Se o link contiver uma)", value=False)
@@ -86,7 +79,7 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         st.session_state.processado = False
         st.info("Analisando o link e capturando informações...")
         
-        # Coleta do título de forma segura (CORRIGIDO)
+        # Coleta do título de forma segura
         try:
             flag_titulo = '--get-filename' if eh_playlist else '--get-title'
             resultado_titulo = subprocess.run(
@@ -113,6 +106,7 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
             nome_final = os.path.join(st.session_state.temp_dir, f"download_{int(os.getpid())}.{extensao}")
             st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
             st.session_state.caminho_arquivo = nome_final
+            comando.extend(['-o', nome_final])
         else:
             comando.append('--yes-playlist')
             nome_final_template = os.path.join(st.session_state.temp_dir, "%(title)s.%(ext)s")
@@ -131,14 +125,6 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
             comando.extend(['-f', filtro_video, '--merge-output-format', 'mp4'])
         else:
             comando.extend(['-x', '--audio-format', 'mp3', '--audio-quality', '0', '--embed-thumbnail'])
-
-        # Se houver solicitação de corte, o yt-dlp baixará o vídeo completo primeiro
-        precisa_cortar = (tempo_inicio or tempo_fim) and not eh_playlist
-        if precisa_cortar:
-            nome_baixar = os.path.join(st.session_state.temp_dir, f"download_completo_{int(os.getpid())}.{extensao}")
-            comando.extend(['-o', nome_baixar])
-        elif not eh_playlist:
-            comando.extend(['-o', nome_final])
 
         # Execução do download com a barra de progresso
         processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -165,33 +151,6 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
 
         processo.wait()
         
-        # ✂️ EXECUÇÃO DO CORTE SEGURO COM FFMEG INDEPENDENTE (CORREGIDO)
-        if precisa_cortar:
-            if os.path.exists(nome_baixar):
-                status_progresso.text("Cortando o arquivo no intervalo selecionado...")
-                
-                def para_segundos(tempo_str):
-                    if not tempo_str: return None
-                    unidades = list(map(int, tempo_str.strip().split(':')))
-                    if len(unidades) == 3:  # hh:mm:ss
-                        return unidades[0] * 3600 + unidades[1] * 60 + unidades[2]
-                    elif len(unidades) == 2:  # mm:ss
-                        return unidades[0] * 60 + unidades[1]
-                    return unidades[0]
-
-                seg_inicio = para_segundos(tempo_inicio) if tempo_inicio else 0
-                seg_fim = para_segundos(tempo_fim) if tempo_fim else None
-                
-                cmd_corte = ['ffmpeg', '-y', '-ss', str(seg_inicio)]
-                if seg_fim:
-                    cmd_corte.extend(['-t', str(seg_fim - seg_inicio)])
-                
-                cmd_corte.extend(['-i', nome_baixar, '-c', 'copy', nome_final])
-                subprocess.run(cmd_corte, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                
-                if os.path.exists(nome_baixar):
-                    os.remove(nome_baixar)
-
         # Compactação em ZIP se for download de Playlist inteira
         if eh_playlist:
             arquivos_baixados = [os.path.join(st.session_state.temp_dir, f) for f in os.listdir(st.session_state.temp_dir) if f.endswith(extensao) and not f.startswith("download_")]
@@ -205,7 +164,7 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
             st.session_state.processado = True
             st.rerun()
         else:
-            st.error("Erro ao gerar o arquivo de mídia. Verifique se o link ou os tempos de corte estão corretos.")
+            st.error("Erro ao gerar o arquivo de mídia. Verifique se o link está correto.")
 
 # BOTÃO DE DOWNLOAD FINAL
 if st.session_state.processado and os.path.exists(st.session_state.caminho_arquivo):
