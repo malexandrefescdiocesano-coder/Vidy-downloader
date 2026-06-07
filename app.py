@@ -77,22 +77,23 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         st.session_state.processado = False
         status_info = st.info("Processando o download direto nos servidores... Aguarde.")
         
-        # Criação estável de diretório temporário
         if "temp_dir" not in st.session_state or not os.path.exists(st.session_state.temp_dir):
             st.session_state.temp_dir = tempfile.mkdtemp()
             
         extensao = "mp4" if formato == "Video (MP4)" else "mp3"
         
-        # Filtros de qualidade
         filtro_video = "bv*+ba/b"
         if resolucao == "720p (HD)":
             filtro_video = "bv*[height<=720]+ba/b[height<=720]"
         elif resolucao == "480p (Standard)":
             filtro_video = "bv*[height<=480]+ba/b[height<=480]"
 
-        # Opções nativas do yt-dlp totalmente reformuladas
+        # 🔥 FORÇA BRUTA: Definimos um nome fixo temporário controlado
+        nome_temporario_fixo = f"midia_temporaria_{int(os.getpid())}.%(ext)s"
+        caminho_temporario_completo = os.path.join(st.session_state.temp_dir, f"midia_temporaria_{int(os.getpid())}.{extensao}")
+
         ydl_opts = {
-            'outtmpl': os.path.join(st.session_state.temp_dir, '%(title)s.%(ext)s'),
+            'outtmpl': os.path.join(st.session_state.temp_dir, nome_temporario_fixo),
             'ignoreerrors': True,
             'noplaylist': not eh_playlist,
             'quiet': True,
@@ -124,38 +125,35 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
                     st.session_state.nome_arquivo = f"Playlist_{titulo_limpo}.zip"
                     st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, st.session_state.nome_arquivo)
                     
-                    arquivos_baixados = [os.path.join(st.session_state.temp_dir, f) for f in os.listdir(st.session_state.temp_dir) if f.endswith(extensao)]
+                    arquivos_baixados = [os.path.join(st.session_state.temp_dir, f) for f in os.listdir(st.session_state.temp_dir) if f.endswith(extensao) and not f.startswith("Playlist_")]
                     if arquivos_baixados:
                         with zipfile.ZipFile(st.session_state.caminho_arquivo, 'w') as zipf:
                             for arq in arquivos_baixados:
                                 zipf.write(arq, os.path.basename(arq))
                                 os.remove(arq)
                 
-                # 🎥 TRATAMENTO DE VÍDEO/ÁUDIO ÚNICO
+                # 🎥 TRATAMENTO DE VÍDEO/ÁUDIO ÚNICO (BLINDADO)
                 else:
-                    arquivos_na_pasta = os.listdir(st.session_state.temp_dir)
-                    arquivo_encontrado = None
+                    titulo_video = info_dict.get('title', 'Vidy_Download') if info_dict else 'Vidy_Download'
+                    titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_video)
                     
-                    # Procura o arquivo gerado na pasta temporária de forma dinâmica
-                    for f in arquivos_na_pasta:
-                        if f.endswith(extensao) and not f.endswith('.zip'):
-                            arquivo_encontrado = f
-                            break
-                    
-                    if arquivo_encontrado:
-                        st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, arquivo_encontrado)
-                        st.session_state.nome_arquivo = arquivo_encontrado
-                    else:
-                        # Fallback seguro caso o nome falhe
-                        titulo_video = info_dict.get('title', 'Vidy_Download') if info_dict else 'Vidy_Download'
-                        titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_video)
+                    # Verificamos se o nosso arquivo fixo realmente foi criado pelo yt-dlp
+                    if os.path.exists(caminho_temporario_completo):
+                        st.session_state.caminho_arquivo = caminho_temporario_completo
                         st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
+                    else:
+                        # Se por algum motivo o yt-dlp ignorou o nome fixo, listamos a pasta como plano B
+                        for f in os.listdir(st.session_state.temp_dir):
+                            if f.endswith(extensao) and not f.endswith('.zip'):
+                                st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, f)
+                                st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
+                                break
 
-            if os.path.exists(st.session_state.caminho_arquivo):
+            if st.session_state.caminho_arquivo and os.path.exists(st.session_state.caminho_arquivo):
                 st.session_state.processado = True
                 st.rerun()
             else:
-                st.error("O arquivo foi baixado, mas não pôde ser movido. Tente novamente.")
+                st.error("O arquivo foi baixado, mas mudou de formato no servidor. Tente mudar de Vídeo para Áudio ou vice-versa.")
         except Exception as e:
             st.error(f"Erro de processamento nos servidores: {str(e)}")
 
