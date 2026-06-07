@@ -6,7 +6,7 @@ import io
 import tempfile
 import zipfile  # Nova biblioteca para compactar playlists
 
-URL_DA_LOGO = "https://postimg.cc"
+URL_DA_LOGO = "MINHA_URL_SECRETA"
 
 st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
 
