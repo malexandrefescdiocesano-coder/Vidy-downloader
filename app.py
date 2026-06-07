@@ -140,6 +140,9 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
                 # Aplica o Recorte de Pedaço (Apenas se o usuário preencheu e NÃO for playlist inteira)
         if (tempo_inicio or tempo_fim) and not eh_playlist:
             # Função interna para converter "00:01:25" para segundos puros
+           # Aplica o Recorte de Pedaço (Apenas se o usuário preencheu e NÃO for playlist inteira)
+        if (tempo_inicio or tempo_fim) and not eh_playlist:
+            # Função interna para converter "00:01:25" para segundos puros
             def para_segundos(tempo_str):
                 if not tempo_str: 
                     return None
@@ -147,14 +150,59 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
                 if len(partes) == 3:  # hh:mm:ss
                     return partes[0] * 3600 + partes[1] * 60 + partes[2]
                 elif len(partes) == 2:  # mm:ss
-                    return partes[0] * 60 + partes[1]
+                    return partes[0] * 60 + partes[1] * 60
                 return partes[0]
 
             seg_inicio = para_segundos(tempo_inicio) if tempo_inicio else 0
-            seg_fim = para_segundos(tempo_fim) if tempo_fim else "inf"
+            seg_fim = para_segundos(tempo_fim) if tempo_fim else None
+
+            # 🔄 ESTRATÉGIA BLINDADA: Baixa o arquivo base e corta logo em seguida via FFmpeg
+            nome_original_completo = nome_final.replace(f".{extensao}", f"_completo.{extensao}")
             
-            # Formato numérico seguro para o yt-dlp (*85-107)
-            comando.extend(['--download-sections', f"*{seg_inicio}-{seg_fim}"])
+            # Ajusta temporariamente o destino do comando do yt-dlp para o arquivo completo
+            comando = [item if item != nome_final else nome_original_completo for item in comando]
+            
+            # Executa o yt-dlp normal para baixar tudo
+            processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            
+            status_progresso = st.empty()
+            barra_progresso = st.progress(0)
+            
+            ultimo_valor = 0
+            for linha in processo.stdout:
+                if "[download]" in linha and "%" in linha:
+                    try:
+                        partes = linha.split()
+                        for p in partes:
+                            if "%" in p:
+                                porcentagem = float(p.replace("%", ""))
+                                progresso_int = int(porcentagem)
+                                if progresso_int > ultimo_valor:
+                                    barra_progresso.progress(progresso_int / 100.0)
+                                    status_progresso.text(f"Progresso atual: {progresso_int}%")
+                                    ultimo_valor = progresso_int
+                                break
+                    except:
+                        pass
+            processo.wait()
+
+            # ✂️ ENTRADA DO FFMEG INDEPENDENTE: Se o download terminar, extraímos o pedaço
+            if os.path.exists(nome_original_completo):
+                status_progresso.text("Cortando o arquivo no intervalo selecionado...")
+                
+                # Monta a chamada direta ao FFmpeg instalado pelo packages.txt
+                cmd_corte = ['ffmpeg', '-y', '-ss', str(seg_inicio)]
+                if seg_fim:
+                    duracao = seg_fim - seg_inicio
+                    cmd_corte.extend(['-t', str(duracao)])
+                
+                cmd_corte.extend(['-i', nome_original_completo, '-c', 'copy', nome_final])
+                
+                # Executa o corte instantâneo sem precisar reprocessar o vídeo do zero
+                subprocess.run(cmd_corte, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                
+                # Remove o arquivo temporário gigante do servidor
+                os.remove(nome_original_completo)
 
         # Executa o download
         processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
