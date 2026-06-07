@@ -40,7 +40,7 @@ Este é um app privado só para você. NÃO compartilhe este link com ninguém!�
 
 JAMAIS baixe vídeos com direitos autorais! 🚧
 
-Saiba mais sobre direitos autorais 👉 https://vimeo.com/1199219472?share=copy&fl=sv&fe=ci""")
+Saiba mais sobre direitos autorias 👉 https://vimeo.com/1199219472?share=copy&fl=sv&fe=ci""")
 
 st.image(URL_DA_LOGO, use_container_width=True)
 st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader v2</h1>", unsafe_allow_html=True)
@@ -75,22 +75,22 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         st.error("🚨 Link inválido! Por segurança, este aplicativo aceita apenas URLs oficiais do YouTube.")
     else:
         st.session_state.processado = False
-        status_info = st.info("Processando a mídia de forma nativa e segura...")
+        status_info = st.info("Processando o download direto nos servidores... Aguarde.")
         
-        # Criação de diretório temporário isolado por sessão
-        if "temp_dir" not in st.session_state:
+        # Criação estável de diretório temporário
+        if "temp_dir" not in st.session_state or not os.path.exists(st.session_state.temp_dir):
             st.session_state.temp_dir = tempfile.mkdtemp()
             
         extensao = "mp4" if formato == "Video (MP4)" else "mp3"
         
-        # Filtros de Resolução de Vídeo
+        # Filtros de qualidade
         filtro_video = "bv*+ba/b"
         if resolucao == "720p (HD)":
             filtro_video = "bv*[height<=720]+ba/b[height<=720]"
         elif resolucao == "480p (Standard)":
             filtro_video = "bv*[height<=480]+ba/b[height<=480]"
 
-        # Configura as opções do yt-dlp nativo do Python
+        # Opções nativas do yt-dlp totalmente reformuladas
         ydl_opts = {
             'outtmpl': os.path.join(st.session_state.temp_dir, '%(title)s.%(ext)s'),
             'ignoreerrors': True,
@@ -113,45 +113,51 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
             }]
 
         try:
-            # Executa a extração usando a biblioteca do Python
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(url.strip(), download=True)
                 
+                # 📦 TRATAMENTO DE PLAYLIST (ZIP)
                 if eh_playlist:
-                    titulo_playlist = info_dict.get('title', 'Playlist_Vidy')
+                    titulo_playlist = info_dict.get('title', 'Playlist_Vidy') if info_dict else 'Playlist_Vidy'
                     titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_playlist)
+                    
                     st.session_state.nome_arquivo = f"Playlist_{titulo_limpo}.zip"
                     st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, st.session_state.nome_arquivo)
                     
-                    # Zipa os arquivos baixados
                     arquivos_baixados = [os.path.join(st.session_state.temp_dir, f) for f in os.listdir(st.session_state.temp_dir) if f.endswith(extensao)]
                     if arquivos_baixados:
                         with zipfile.ZipFile(st.session_state.caminho_arquivo, 'w') as zipf:
                             for arq in arquivos_baixados:
                                 zipf.write(arq, os.path.basename(arq))
                                 os.remove(arq)
+                
+                # 🎥 TRATAMENTO DE VÍDEO/ÁUDIO ÚNICO
                 else:
-                    # Captura o título real retornado pelo vídeo único
-                    titulo_video = info_dict.get('title', 'Vidy_Download')
-                    titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_video)
-                    
-                    # Localiza o arquivo gerado na pasta temporária
                     arquivos_na_pasta = os.listdir(st.session_state.temp_dir)
-                    if arquivos_na_pasta:
-                        # Pega o primeiro arquivo correspondente à extensão gerada
-                        for f in arquivos_na_pasta:
-                            if f.endswith(extensao):
-                                st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, f)
-                                st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
-                                break
+                    arquivo_encontrado = None
+                    
+                    # Procura o arquivo gerado na pasta temporária de forma dinâmica
+                    for f in arquivos_na_pasta:
+                        if f.endswith(extensao) and not f.endswith('.zip'):
+                            arquivo_encontrado = f
+                            break
+                    
+                    if arquivo_encontrado:
+                        st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, arquivo_encontrado)
+                        st.session_state.nome_arquivo = arquivo_encontrado
+                    else:
+                        # Fallback seguro caso o nome falhe
+                        titulo_video = info_dict.get('title', 'Vidy_Download') if info_dict else 'Vidy_Download'
+                        titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_video)
+                        st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
 
             if os.path.exists(st.session_state.caminho_arquivo):
                 st.session_state.processado = True
                 st.rerun()
             else:
-                st.error("Erro ao localizar o arquivo de mídia baixado no servidor.")
+                st.error("O arquivo foi baixado, mas não pôde ser movido. Tente novamente.")
         except Exception as e:
-            st.error(f"Erro no processamento da biblioteca: {str(e)}")
+            st.error(f"Erro de processamento nos servidores: {str(e)}")
 
 # BOTÃO DE DOWNLOAD FINAL
 if st.session_state.processado and os.path.exists(st.session_state.caminho_arquivo):
