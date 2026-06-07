@@ -36,9 +36,11 @@ if not st.session_state.logado:
 
 # INTERFACE DO APP COMPLETO
 st.warning("""🚨 AVISO DE SEGURANÇA E PRIVACIDADE:
-Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
-JAMAIS baixe vídeos com direitos autorais!🧑‍✈🚧""")
 
+Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
+
+JAMAIS baixe vídeos com direitos autorais!🧑‍✈🚧""")
+st.warning("""Saiba mais sobre direitos autorais aqui 👉 https://vimeo.com/1199179825?share=copy&fl=sv&fe=ci
 st.image(URL_DA_LOGO, use_container_width=True)
 st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader</h1>", unsafe_allow_html=True)
 st.write("---")
