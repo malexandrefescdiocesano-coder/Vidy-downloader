@@ -8,7 +8,7 @@ import zipfile
 
 URL_DA_LOGO = "https://i.postimg.cc/dt63gCnc/Vidy-Logo.png"
 
-st.set_page_config(page_title="Vidy Downloader v2", page_icon=URL_DA_LOGO, layout="centered")
+st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
 
 # BUSCA A SENHA NOS SECRETS DO STREAMLIT (NUVEM OU LOCAL)
 SENHA_CORRETA = st.secrets["MINHA_SENHA_SECRETA"]
@@ -40,7 +40,6 @@ st.warning("""🚨 AVISO DE SEGURANÇA E PRIVACIDADE:
 Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
 
 JAMAIS baixe vídeos com direitos autorais! 🚧
-
 Saiba mais sobre direitos autorais 👉 https://vimeo.com/1199219472?share=copy&fl=sv&fe=ci""")
 
 st.image(URL_DA_LOGO, use_container_width=True)
@@ -87,7 +86,7 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         st.session_state.processado = False
         st.info("Analisando o link e capturando informações...")
         
-        # Coleta do título de forma segura
+        # Coleta do título de forma segura (CORRIGIDO)
         try:
             flag_titulo = '--get-filename' if eh_playlist else '--get-title'
             resultado_titulo = subprocess.run(
@@ -95,7 +94,7 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
             )
             linhas_retorno = resultado_titulo.stdout.strip().split('\n')
-            titulo_original = linhas_retorno[0] if linhas_retorno else "Vidy_Download"
+            titulo_original = linhas_retorno[0].strip() if linhas_retorno else "Vidy_Download"
             titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_original)
         except:
             titulo_limpo = "Vidy_Download"
@@ -166,17 +165,19 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
 
         processo.wait()
         
-        # ✂️ EXECUÇÃO DO CORTE SEGURO COM FFMEG INDEPENDENTE
+        # ✂️ EXECUÇÃO DO CORTE SEGURO COM FFMEG INDEPENDENTE (CORREGIDO)
         if precisa_cortar:
             if os.path.exists(nome_baixar):
                 status_progresso.text("Cortando o arquivo no intervalo selecionado...")
                 
                 def para_segundos(tempo_str):
                     if not tempo_str: return None
-                    partes = list(map(int, tempo_str.strip().split(':')))
-                    if len(partes) == 3: return partes[0] * 3600 + partes[1] * 60 + partes[2]
-                    elif len(partes) == 2: return partes[0] * 60 + partes[1]
-                    return partes[0]
+                    unidades = list(map(int, tempo_str.strip().split(':')))
+                    if len(unidades) == 3:  # hh:mm:ss
+                        return unidades[0] * 3600 + unidades[1] * 60 + unidades[2]
+                    elif len(unidades) == 2:  # mm:ss
+                        return unidades[0] * 60 + unidades[1]
+                    return unidades[0]
 
                 seg_inicio = para_segundos(tempo_inicio) if tempo_inicio else 0
                 seg_fim = para_segundos(tempo_fim) if tempo_fim else None
