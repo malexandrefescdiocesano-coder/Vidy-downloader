@@ -6,9 +6,9 @@ import io
 import tempfile
 import zipfile  # Nova biblioteca para compactar playlists
 
-URL_DA_LOGO = "MINHA_URL_SECRETA"
+URL_DA_LOGO = "https://i.postimg.cc/dt63gCnc/Vidy-Logo.png"
 
-st.set_page_config(page_title="Vidy Downloader", page_icon=MINHA_URL_SECRETA, layout="centered")
+st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
 
 # BUSCA A SENHA NOS SECRETS DA NUVEM
 SENHA_CORRETA = st.secrets["MINHA_SENHA_SECRETA"]
@@ -18,7 +18,7 @@ if "logado" not in st.session_state:
 
 # TELA DE LOGIN
 if not st.session_state.logado:
-    st.image("MINHA_URL_SECRETA", use_container_width=True)
+    st.image(URL_DA_LOGO, use_container_width=True)
     st.markdown("<h2 style='text-align: center; color: #1E90FF;'>🔐 Área Restrita do Vidy</h2>", unsafe_allow_html=True)
     st.write("---")
     
@@ -39,7 +39,7 @@ st.warning("""🚨 AVISO DE SEGURANÇA E PRIVACIDADE:
 Este é um app privado só para você. NÃO compartilhe este link com ninguém!🔗🚫
 JAMAIS baixe vídeos com direitos autorais!🧑‍✈🚧""")
 
-st.image(MINHA_URL_SECRETA, use_container_width=True)
+st.image(URL_DA_LOGO, use_container_width=True)
 st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader v2</h1>", unsafe_allow_html=True)
 st.write("---")
 
