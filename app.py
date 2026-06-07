@@ -1,14 +1,13 @@
 import streamlit as st
-import subprocess
+import yt_dlp
 import re
 import os
-import io
 import tempfile
 import zipfile
 
 URL_DA_LOGO = "https://i.postimg.cc/dt63gCnc/Vidy-Logo.png"
 
-st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
+st.set_page_config(page_title="Vidy Downloader v2", page_icon=URL_DA_LOGO, layout="centered")
 
 # BUSCA A SENHA NOS SECRETS DO STREAMLIT (NUVEM OU LOCAL)
 SENHA_CORRETA = st.secrets["MINHA_SENHA_SECRETA"]
@@ -44,7 +43,7 @@ JAMAIS baixe vídeos com direitos autorais! 🚧
 Saiba mais sobre direitos autorais 👉 https://vimeo.com/1199219472?share=copy&fl=sv&fe=ci""")
 
 st.image(URL_DA_LOGO, use_container_width=True)
-st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader v2</h1>", unsafe_allow_html=True)
 st.write("---")
 
 if "processado" not in st.session_state:
@@ -72,48 +71,18 @@ st.write("")
 if st.button("🚀 Iniciar Processamento", use_container_width=True):
     if not url:
         st.error("Por favor, insira uma URL válida do YouTube!")
-    # VALIDAÇÃO INTELIGENTE DE LINK COM REGEX
     elif not re.match(r"^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+", url.strip()):
         st.error("🚨 Link inválido! Por segurança, este aplicativo aceita apenas URLs oficiais do YouTube.")
     else:
         st.session_state.processado = False
-        st.info("Analisando o link e capturando informações...")
-        
-        # Coleta do título de forma segura
-        try:
-            flag_titulo = '--get-filename' if eh_playlist else '--get-title'
-            resultado_titulo = subprocess.run(
-                ['yt-dlp', flag_titulo, url.strip()], 
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
-            )
-            linhas_retorno = resultado_titulo.stdout.strip().split('\n')
-            titulo_original = linhas_retorno[0].strip() if linhas_retorno else "Vidy_Download"
-            titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_original)
-        except:
-            titulo_limpo = "Vidy_Download"
-
-        extensao = "mp4" if formato == "Video (MP4)" else "mp3"
+        status_info = st.info("Processando a mídia de forma nativa e segura...")
         
         # Criação de diretório temporário isolado por sessão
         if "temp_dir" not in st.session_state:
             st.session_state.temp_dir = tempfile.mkdtemp()
             
-        comando = ['yt-dlp', '--newline', '--ignore-errors', '--embed-metadata', url.strip()]
+        extensao = "mp4" if formato == "Video (MP4)" else "mp3"
         
-        # Configuração de rotas (Playlist vs Único)
-        if not eh_playlist:
-            comando.append('--no-playlist')
-            nome_final = os.path.join(st.session_state.temp_dir, f"download_{int(os.getpid())}.{extensao}")
-            st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
-            st.session_state.caminho_arquivo = nome_final
-            comando.extend(['-o', nome_final])
-        else:
-            comando.append('--yes-playlist')
-            nome_final_template = os.path.join(st.session_state.temp_dir, "%(title)s.%(ext)s")
-            comando.extend(['-o', nome_final_template])
-            st.session_state.nome_arquivo = f"Playlist_{titulo_limpo}.zip"
-            st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, st.session_state.nome_arquivo)
-
         # Filtros de Resolução de Vídeo
         filtro_video = "bv*+ba/b"
         if resolucao == "720p (HD)":
@@ -121,50 +90,68 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         elif resolucao == "480p (Standard)":
             filtro_video = "bv*[height<=480]+ba/b[height<=480]"
 
+        # Configura as opções do yt-dlp nativo do Python
+        ydl_opts = {
+            'outtmpl': os.path.join(st.session_state.temp_dir, '%(title)s.%(ext)s'),
+            'ignoreerrors': True,
+            'noplaylist': not eh_playlist,
+            'quiet': True,
+            'no_warnings': True,
+        }
+        
         if formato == "Video (MP4)":
-            comando.extend(['-f', filtro_video, '--merge-output-format', 'mp4'])
+            ydl_opts['format'] = filtro_video
+            ydl_opts['merge_output_format'] = 'mp4'
         else:
-            comando.extend(['-x', '--audio-format', 'mp3', '--audio-quality', '0', '--embed-thumbnail'])
+            ydl_opts['format'] = 'bestaudio/best'
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '0',
+            }, {
+                'key': 'FFmpegEmbedThumbnail',
+            }]
 
-        # Execução do download com a barra de progresso
-        processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        
-        status_progresso = st.empty()
-        barra_progresso = st.progress(0)
-        
-        ultimo_valor = 0
-        for linha in processo.stdout:
-            if "[download]" in linha and "%" in linha:
-                try:
-                    partes = linha.split()
-                    for p in partes:
-                        if "%" in p:
-                            porcentagem = float(p.replace("%", ""))
-                            progresso_int = int(porcentagem)
-                            if progresso_int > ultimo_valor:
-                                barra_progresso.progress(progresso_int / 100.0)
-                                status_progresso.text(f"Progresso atual: {progresso_int}%")
-                                ultimo_valor = progresso_int
-                            break
-                except:
-                    pass
+        try:
+            # Executa a extração usando a biblioteca do Python
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(url.strip(), download=True)
+                
+                if eh_playlist:
+                    titulo_playlist = info_dict.get('title', 'Playlist_Vidy')
+                    titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_playlist)
+                    st.session_state.nome_arquivo = f"Playlist_{titulo_limpo}.zip"
+                    st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, st.session_state.nome_arquivo)
+                    
+                    # Zipa os arquivos baixados
+                    arquivos_baixados = [os.path.join(st.session_state.temp_dir, f) for f in os.listdir(st.session_state.temp_dir) if f.endswith(extensao)]
+                    if arquivos_baixados:
+                        with zipfile.ZipFile(st.session_state.caminho_arquivo, 'w') as zipf:
+                            for arq in arquivos_baixados:
+                                zipf.write(arq, os.path.basename(arq))
+                                os.remove(arq)
+                else:
+                    # Captura o título real retornado pelo vídeo único
+                    titulo_video = info_dict.get('title', 'Vidy_Download')
+                    titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_video)
+                    
+                    # Localiza o arquivo gerado na pasta temporária
+                    arquivos_na_pasta = os.listdir(st.session_state.temp_dir)
+                    if arquivos_na_pasta:
+                        # Pega o primeiro arquivo correspondente à extensão gerada
+                        for f in arquivos_na_pasta:
+                            if f.endswith(extensao):
+                                st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, f)
+                                st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
+                                break
 
-        processo.wait()
-        
-        # Compactação em ZIP se for download de Playlist inteira
-        if eh_playlist:
-            arquivos_baixados = [os.path.join(st.session_state.temp_dir, f) for f in os.listdir(st.session_state.temp_dir) if f.endswith(extensao) and not f.startswith("download_")]
-            if arquivos_baixados:
-                with zipfile.ZipFile(st.session_state.caminho_arquivo, 'w') as zipf:
-                    for arq in arquivos_baixados:
-                        zipf.write(arq, os.path.basename(arq))
-                        os.remove(arq)
-
-        if os.path.exists(st.session_state.caminho_arquivo):
-            st.session_state.processado = True
-            st.rerun()
-        else:
-            st.error("Erro ao gerar o arquivo de mídia. Verifique se o link está correto.")
+            if os.path.exists(st.session_state.caminho_arquivo):
+                st.session_state.processado = True
+                st.rerun()
+            else:
+                st.error("Erro ao localizar o arquivo de mídia baixado no servidor.")
+        except Exception as e:
+            st.error(f"Erro no processamento da biblioteca: {str(e)}")
 
 # BOTÃO DE DOWNLOAD FINAL
 if st.session_state.processado and os.path.exists(st.session_state.caminho_arquivo):
