@@ -52,7 +52,7 @@ if "caminho_arquivo" not in st.session_state:
 if "nome_arquivo" not in st.session_state:
     st.session_state.nome_arquivo = ""
 
-url = st.text_input("Cole a URL do YouTube aqui (Vídeo individual):", placeholder="https://youtube.com...")
+url = st.text_input("Cole a URL do YouTube aqui:", placeholder="https://youtube.com...")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -64,17 +64,17 @@ st.write("")
 
 if st.button("🚀 Iniciar Processamento", use_container_width=True):
     if not url:
-        st.error("Por favor, insira uma URL válida do YouTube!")
-    # VALIDAÇÃO DE SEGURANÇA CONTRA LINKS MALICIOSOS
-    elif not url.strip().startswith(("https://youtube.com", "https://youtube.com", "https://youtu.be", "http://youtube.com", "http://youtube.com", "http://youtu.be")):
-        st.error("🚨 Link inválido! Por segurança, este aplicativo aceita apenas URLs oficiais do YouTube.")
+        st.error("Por favor, insira uma URL válida!")
     else:
         st.session_state.processado = False
         st.info("Analisando o link e capturando informações originais...")
         
+        # O link agora passa limpo direto para o yt-dlp processar
+        url_limpa = url.strip()
+        
         try:
             resultado_titulo = subprocess.run(
-                ['yt-dlp', '--get-title', url.strip()], 
+                ['yt-dlp', '--get-title', url_limpa], 
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
             )
             titulo_original = resultado_titulo.stdout.strip()
@@ -91,7 +91,7 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         if os.path.exists(nome_final):
             os.remove(nome_final)
             
-        comando = ['yt-dlp', '--newline', '--ignore-errors', '--embed-metadata', '--no-playlist', '-o', nome_final, url.strip()]
+        comando = ['yt-dlp', '--newline', '--ignore-errors', '--embed-metadata', '--no-playlist', '-o', nome_final, url_limpa]
         
         if resolucao == "720p (HD)":
             filtro_video = "bv*[height<=720]+ba/b[height<=720]"
@@ -133,7 +133,7 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
             st.session_state.processado = True
             st.rerun()
         else:
-            st.error("Erro ao gerar o arquivo de mídia.")
+            st.error("Erro ao gerar o arquivo de mídia. O link pode estar inacessível ou o servidor bloqueado.")
 
 if st.session_state.processado and os.path.exists(st.session_state.caminho_arquivo):
     st.success(f"✨ Pronto! Pronto para baixar: {st.session_state.nome_arquivo}")
