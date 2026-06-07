@@ -1,13 +1,12 @@
 import streamlit as st
-import yt_dlp
+import subprocess
 import re
 import os
-import tempfile
-import zipfile
+import io
 
 URL_DA_LOGO = "https://i.postimg.cc/dt63gCnc/Vidy-Logo.png"
 
-st.set_page_config(page_title="Vidy Downloader v2", page_icon=URL_DA_LOGO, layout="centered")
+st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
 
 # BUSCA A SENHA NOS SECRETS DO STREAMLIT (NUVEM OU LOCAL)
 SENHA_CORRETA = st.secrets["MINHA_SENHA_SECRETA"]
@@ -40,10 +39,10 @@ Este é um app privado só para você. NÃO compartilhe este link com ninguém!�
 
 JAMAIS baixe vídeos com direitos autorais! 🚧
 
-Saiba mais sobre direitos autorias 👉 https://vimeo.com/1199219472?share=copy&fl=sv&fe=ci""")
+Saiba mais sobre direitos autorais 👉 https://vimeo.com/1199219472?fl=ip&fe=ec""")
 
 st.image(URL_DA_LOGO, use_container_width=True)
-st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader v2</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E90FF;'>🚀 Vidy Downloader</h1>", unsafe_allow_html=True)
 st.write("---")
 
 if "processado" not in st.session_state:
@@ -53,111 +52,89 @@ if "caminho_arquivo" not in st.session_state:
 if "nome_arquivo" not in st.session_state:
     st.session_state.nome_arquivo = ""
 
-url = st.text_input("Cole a URL do YouTube aqui:", placeholder="https://youtube.com...")
+url = st.text_input("Cole a URL do YouTube aqui (Vídeo individual):", placeholder="https://youtube.com...")
 
-# CONFIGURAÇÕES DE FORMATO E QUALIDADE
 col1, col2 = st.columns(2)
 with col1:
     formato = st.selectbox("Formato desejado:", ["Video (MP4)", "Audio (MP3)"])
 with col2:
-    resolucao = st.selectbox("Resolução máxima (Apenas Vídeo):", ["Maxima Qualidade (Ate 4K/8K)", "720p (HD)", "480p (Standard)"])
-
-# 🎶 CONFIGURAÇÃO DE PLAYLIST
-st.markdown("### 🎶 Configuração de Playlist")
-eh_playlist = st.checkbox("Baixar a PLAYLIST INTEIRA (Se o link contiver uma)", value=False)
+    resolucao = st.selectbox("Resolução máxima (Apenas para Vídeo):", ["Maxima Qualidade (Ate 4K/8K)", "720p (HD)", "480p (Standard)"])
 
 st.write("")
 
 if st.button("🚀 Iniciar Processamento", use_container_width=True):
     if not url:
         st.error("Por favor, insira uma URL válida do YouTube!")
-    elif not re.match(r"^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+", url.strip()):
+    # VALIDAÇÃO DE SEGURANÇA CONTRA LINKS MALICIOSOS
+    elif not url.strip().startswith(("https://youtube.com", "https://youtube.com", "https://youtu.be", "http://youtube.com", "http://youtube.com", "http://youtu.be")):
         st.error("🚨 Link inválido! Por segurança, este aplicativo aceita apenas URLs oficiais do YouTube.")
     else:
         st.session_state.processado = False
-        status_info = st.info("Processando o download direto nos servidores... Aguarde.")
+        st.info("Analisando o link e capturando informações originais...")
         
-        if "temp_dir" not in st.session_state or not os.path.exists(st.session_state.temp_dir):
-            st.session_state.temp_dir = tempfile.mkdtemp()
-            
+        try:
+            resultado_titulo = subprocess.run(
+                ['yt-dlp', '--get-title', url.strip()], 
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
+            )
+            titulo_original = resultado_titulo.stdout.strip()
+            titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_original)
+        except:
+            titulo_limpo = "Vidy_Download"
+
         extensao = "mp4" if formato == "Video (MP4)" else "mp3"
+        nome_final = f"download_temporario.{extensao}"
         
-        filtro_video = "bv*+ba/b"
+        st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
+        st.session_state.caminho_arquivo = nome_final
+        
+        if os.path.exists(nome_final):
+            os.remove(nome_final)
+            
+        comando = ['yt-dlp', '--newline', '--ignore-errors', '--embed-metadata', '--no-playlist', '-o', nome_final, url.strip()]
+        
         if resolucao == "720p (HD)":
             filtro_video = "bv*[height<=720]+ba/b[height<=720]"
         elif resolucao == "480p (Standard)":
             filtro_video = "bv*[height<=480]+ba/b[height<=480]"
-
-        # 🔥 FORÇA BRUTA: Definimos um nome fixo temporário controlado
-        nome_temporario_fixo = f"midia_temporaria_{int(os.getpid())}.%(ext)s"
-        caminho_temporario_completo = os.path.join(st.session_state.temp_dir, f"midia_temporaria_{int(os.getpid())}.{extensao}")
-
-        ydl_opts = {
-            'outtmpl': os.path.join(st.session_state.temp_dir, nome_temporario_fixo),
-            'ignoreerrors': True,
-            'noplaylist': not eh_playlist,
-            'quiet': True,
-            'no_warnings': True,
-        }
-        
-        if formato == "Video (MP4)":
-            ydl_opts['format'] = filtro_video
-            ydl_opts['merge_output_format'] = 'mp4'
         else:
-            ydl_opts['format'] = 'bestaudio/best'
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '0',
-            }, {
-                'key': 'FFmpegEmbedThumbnail',
-            }]
+            filtro_video = "bv*+ba/b"
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info_dict = ydl.extract_info(url.strip(), download=True)
-                
-                # 📦 TRATAMENTO DE PLAYLIST (ZIP)
-                if eh_playlist:
-                    titulo_playlist = info_dict.get('title', 'Playlist_Vidy') if info_dict else 'Playlist_Vidy'
-                    titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_playlist)
-                    
-                    st.session_state.nome_arquivo = f"Playlist_{titulo_limpo}.zip"
-                    st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, st.session_state.nome_arquivo)
-                    
-                    arquivos_baixados = [os.path.join(st.session_state.temp_dir, f) for f in os.listdir(st.session_state.temp_dir) if f.endswith(extensao) and not f.startswith("Playlist_")]
-                    if arquivos_baixados:
-                        with zipfile.ZipFile(st.session_state.caminho_arquivo, 'w') as zipf:
-                            for arq in arquivos_baixados:
-                                zipf.write(arq, os.path.basename(arq))
-                                os.remove(arq)
-                
-                # 🎥 TRATAMENTO DE VÍDEO/ÁUDIO ÚNICO (BLINDADO)
-                else:
-                    titulo_video = info_dict.get('title', 'Vidy_Download') if info_dict else 'Vidy_Download'
-                    titulo_limpo = re.sub(r'[/\\\\?%*:|"<>.]', '', titulo_video)
-                    
-                    # Verificamos se o nosso arquivo fixo realmente foi criado pelo yt-dlp
-                    if os.path.exists(caminho_temporario_completo):
-                        st.session_state.caminho_arquivo = caminho_temporario_completo
-                        st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
-                    else:
-                        # Se por algum motivo o yt-dlp ignorou o nome fixo, listamos a pasta como plano B
-                        for f in os.listdir(st.session_state.temp_dir):
-                            if f.endswith(extensao) and not f.endswith('.zip'):
-                                st.session_state.caminho_arquivo = os.path.join(st.session_state.temp_dir, f)
-                                st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
-                                break
+        if formato == "Video (MP4)":
+            comando[1:1] = ['-f', filtro_video, '--merge-output-format', 'mp4']
+        else:
+            comando[1:1] = ['-x', '--audio-format', 'mp3', '--audio-quality', '0', '--embed-thumbnail']
 
-            if st.session_state.caminho_arquivo and os.path.exists(st.session_state.caminho_arquivo):
-                st.session_state.processado = True
-                st.rerun()
-            else:
-                st.error("O arquivo foi baixado, mas mudou de formato no servidor. Tente mudar de Vídeo para Áudio ou vice-versa.")
-        except Exception as e:
-            st.error(f"Erro de processamento nos servidores: {str(e)}")
+        processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        
+        status_progresso = st.empty()
+        barra_progresso = st.progress(0)
+        
+        ultimo_valor = 0
+        for linha in processo.stdout:
+            if "[download]" in linha and "%" in linha:
+                try:
+                    partes = linha.split()
+                    for p in partes:
+                        if "%" in p:
+                            porcentagem = float(p.replace("%", ""))
+                            progresso_int = int(porcentagem)
+                            if progresso_int > ultimo_valor:
+                                barra_progresso.progress(progresso_int / 100.0)
+                                status_progresso.text(f"Progresso atual: {progresso_int}%")
+                                ultimo_valor = progresso_int
+                            break
+                except:
+                    pass
 
-# BOTÃO DE DOWNLOAD FINAL
+        processo.wait()
+        
+        if os.path.exists(nome_final):
+            st.session_state.processado = True
+            st.rerun()
+        else:
+            st.error("Erro ao gerar o arquivo de mídia.")
+
 if st.session_state.processado and os.path.exists(st.session_state.caminho_arquivo):
     st.success(f"✨ Pronto! Pronto para baixar: {st.session_state.nome_arquivo}")
     with open(st.session_state.caminho_arquivo, "rb") as f:
