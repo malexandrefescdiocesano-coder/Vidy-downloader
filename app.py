@@ -137,11 +137,24 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
         else:
             comando.extend(['-x', '--audio-format', 'mp3', '--audio-quality', '0', '--embed-thumbnail'])
 
-        # Aplica o Recorte de Pedaço (Apenas se o usuário preencheu e NÃO for playlist inteira)
+                # Aplica o Recorte de Pedaço (Apenas se o usuário preencheu e NÃO for playlist inteira)
         if (tempo_inicio or tempo_fim) and not eh_playlist:
-            t_inicio = tempo_inicio if tempo_inicio else "00:00:00"
-            t_fim = tempo_fim if tempo_fim else "inf"
-            comando.extend(['--download-sections', f"*{t_inicio}-{t_fim}"])
+            # Função interna para converter "00:01:25" para segundos puros
+            def para_segundos(tempo_str):
+                if not tempo_str: 
+                    return None
+                partes = list(map(int, tempo_str.strip().split(':')))
+                if len(partes) == 3:  # hh:mm:ss
+                    return partes[0] * 3600 + partes[1] * 60 + partes[2]
+                elif len(partes) == 2:  # mm:ss
+                    return partes[0] * 60 + partes[1]
+                return partes[0]
+
+            seg_inicio = para_segundos(tempo_inicio) if tempo_inicio else 0
+            seg_fim = para_segundos(tempo_fim) if tempo_fim else "inf"
+            
+            # Formato numérico seguro para o yt-dlp (*85-107)
+            comando.extend(['--download-sections', f"*{seg_inicio}-{seg_fim}"])
 
         # Executa o download
         processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
