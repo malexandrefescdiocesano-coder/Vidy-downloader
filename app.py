@@ -8,8 +8,9 @@ URL_DA_LOGO = "https://i.postimg.cc/rFLbQtsS/Screenshot-2026-05-27-12-09-42.png"
 
 st.set_page_config(page_title="Vidy Downloader", page_icon=URL_DA_LOGO, layout="centered")
 
-# SENHA FIXA DE SEGURANÇA PARA A NUVEM
-SENHA_CORRETA = "441.828.315-4"
+# SENHA FIXA DE SEGURANÇA PARA A NUVEM, Buscando a senha de forma segura nos Secrets do Streamlit
+SENHA_CORRETA = st.secrets["MINHA_SENHA_SECRETA"]
+
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -67,10 +68,16 @@ st.write("")
 if st.button("🚀 Iniciar Processamento", use_container_width=True):
     if not url:
         st.error("Por favor, insira uma URL válida do YouTube!")
+    # 👇 NOVA VALIDAÇÃO DE SEGURANÇA AQUI 👇
+    elif not url.strip().startswith(("https://youtube.com", "https://youtube.com", "https://youtu.be", "http://youtube.com", "http://youtube.com", "http://youtu.be")):
+        st.error("🚨 Link inválido! Por segurança, este aplicativo aceita apenas URLs oficiais do YouTube.")
     else:
         st.session_state.processado = False
+
         st.info("Analisando o link e capturando informações originais...")
         
+                import tempfile
+
         try:
             resultado_titulo = subprocess.run(
                 ['yt-dlp', '--get-title', url], 
@@ -82,13 +89,14 @@ if st.button("🚀 Iniciar Processamento", use_container_width=True):
             titulo_limpo = "Vidy_Download"
 
         extensao = "mp4" if formato == "Video (MP4)" else "mp3"
-        nome_final = f"download_temporario.{extensao}"
-        
         st.session_state.nome_arquivo = f"{titulo_limpo}.{extensao}"
-        st.session_state.caminho_arquivo = nome_final
         
-        if os.path.exists(nome_final):
-            os.remove(nome_final)
+        # 🛡️ Gerando uma pasta e nome únicos para não misturar downloads na nuvem
+        if "temp_dir" not in st.session_state:
+            st.session_state.temp_dir = tempfile.mkdtemp()
+            
+        nome_final = os.path.join(st.session_state.temp_dir, f"download_{int(os.getpid())}.{extensao}")
+        st.session_state.caminho_arquivo = nome_final
             
         comando = ['yt-dlp', '--newline', '--ignore-errors', '--embed-metadata', '-o', nome_final, url]
         
